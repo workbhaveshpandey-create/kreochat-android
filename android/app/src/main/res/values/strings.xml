@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KreoChat</string>
+    <string name="title_activity_main">KreoChat</string>
+    <string name="package_name">com.kreochat.app</string>
+    <string name="custom_url_scheme">com.kreochat.app</string>
+</resources>

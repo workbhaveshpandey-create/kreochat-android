@@ -1,0 +1,8 @@
+{
+  "name": "KreoChat",
+  "description": "A real-time messaging web application mimicking WhatsApp Web using Firebase Free Tier.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
