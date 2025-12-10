@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Navigate } from 'react-router-dom';
-import { FaGoogle, FaMoon, FaSun, FaShieldAlt } from 'react-icons/fa';
+import { FaGoogle, FaMoon, FaSun, FaShieldAlt, FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 
 // Custom Minimalist Brand Logo
 const KreoLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -35,13 +36,46 @@ const KreoLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const Login: React.FC = () => {
-  const { user, signInWithGoogle, loading } = useAuth();
+  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = async () => {
+  const isMobile = Capacitor.isNativePlatform();
+
+  const handleGoogleLogin = async () => {
     setIsSigningIn(true);
-    await signInWithGoogle();
+    setError('');
+    try {
+      await signInWithGoogle();
+    } catch (err: any) {
+      setError(err.message);
+    }
+    setIsSigningIn(false);
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSigningIn(true);
+    setError('');
+
+    try {
+      if (isSignUp) {
+        if (!username.trim()) {
+          throw new Error('Username is required');
+        }
+        await signUpWithEmail(email, password, username);
+      } else {
+        await signInWithEmail(email, password);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+    }
+    setIsSigningIn(false);
   };
 
   if (loading) {
@@ -110,39 +144,127 @@ const Login: React.FC = () => {
             </p>
           </motion.div>
 
-          {/* Login Button */}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.02, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleLogin}
-            disabled={isSigningIn}
-            className="w-full relative overflow-hidden group bg-md-primary dark:bg-md-dark-primary text-md-on-primary dark:text-md-dark-on-primary py-4 px-6 rounded-2xl font-semibold text-lg transition-all shadow-lg shadow-md-primary/20 flex items-center justify-center gap-3"
-          >
-            {isSigningIn ? (
-              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <div className="text-xl"><FaGoogle /></div>
-                <span className="font-display tracking-wide">Continue with Google</span>
-              </>
-            )}
-            {/* Ripple Effect Overlay */}
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-2xl" />
-          </motion.button>
+          {/* Error Message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm"
+            >
+              {error}
+            </motion.div>
+          )}
 
-          {/* Security Note */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-md-on-surface-variant/50 dark:text-md-dark-on-surface-variant/50 uppercase tracking-widest"
-          >
-            <div className="text-sm"><FaShieldAlt /></div>
-            <span>End-to-End Encrypted</span>
-          </motion.div>
+          {/* Platform-specific Auth UI */}
+          {isMobile ? (
+            <>
+              {/* Email/Password Form for Mobile */}
+              <motion.form
+                onSubmit={handleEmailAuth}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="w-full space-y-4"
+              >
+                {isSignUp && (
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/50"><FaUser /></span>
+                    <input
+                      type="text"
+                      placeholder="Username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required={isSignUp}
+                      className="w-full bg-md-surface-variant/20 dark:bg-white/5 text-md-on-surface dark:text-white pl-12 pr-4 py-4 rounded-2xl outline-none border border-md-outline/20 focus:border-md-primary transition-colors"
+                    />
+                  </div>
+                )}
+
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/50"><FaEnvelope /></span>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full bg-md-surface-variant/20 dark:bg-white/5 text-md-on-surface dark:text-white pl-12 pr-4 py-4 rounded-2xl outline-none border border-md-outline/20 focus:border-md-primary transition-colors"
+                  />
+                </div>
+
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/50"><FaLock /></span>
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full bg-md-surface-variant/20 dark:bg-white/5 text-md-on-surface dark:text-white pl-12 pr-4 py-4 rounded-2xl outline-none border border-md-outline/20 focus:border-md-primary transition-colors"
+                  />
+                </div>
+
+                <motion.button
+                  type="submit"
+                  disabled={isSigningIn}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-md-primary dark:bg-md-dark-primary text-md-on-primary dark:text-white py-4 rounded-2xl font-semibold text-lg shadow-lg shadow-md-primary/20 transition-all disabled:opacity-50"
+                >
+                  {isSigningIn ? (
+                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                  ) : (
+                    isSignUp ? 'Sign Up' : 'Sign In'
+                  )}
+                </motion.button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="w-full text-sm text-md-on-surface-variant dark:text-gray-400 hover:text-md-primary transition-colors"
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                </button>
+              </motion.form>
+            </>
+          ) : (
+            <>
+              {/* Google Button for Web */}
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.02, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleGoogleLogin}
+                disabled={isSigningIn}
+                className="w-full relative overflow-hidden group bg-md-primary dark:bg-md-dark-primary text-md-on-primary dark:text-md-dark-on-primary py-4 px-6 rounded-2xl font-semibold text-lg transition-all shadow-lg shadow-md-primary/20 flex items-center justify-center gap-3"
+              >
+                {isSigningIn ? (
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <div className="text-xl"><FaGoogle /></div>
+                    <span className="font-display tracking-wide">Continue with Google</span>
+                  </>
+                )}
+                {/* Ripple Effect Overlay */}
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-2xl" />
+              </motion.button>
+
+              {/* Security Note */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-md-on-surface-variant/50 dark:text-md-dark-on-surface-variant/50 uppercase tracking-widest"
+              >
+                <div className="text-sm"><FaShieldAlt /></div>
+                <span>End-to-End Encrypted</span>
+              </motion.div>
+            </>
+          )}
         </div>
       </motion.div>
 

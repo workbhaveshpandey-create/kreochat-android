@@ -3,9 +3,11 @@ import {
   User,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
 import { UserProfile } from '../types';
 import { Capacitor } from '@capacitor/core';
@@ -15,6 +17,8 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -71,13 +75,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Show alert for mobile users
-        alert('Mobile Google Sign-In requires additional Firebase configuration. Please use the web version for now or contact support.');
-        return;
+        throw new Error('Please use email/password on mobile');
       }
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Error signing in with Google", error);
+      throw error;
+    }
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Error signing in with email", error);
+      throw error;
+    }
+  };
+
+  const signUpWithEmail = async (email: string, password: string, username: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Create user profile in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        email: email,
+        username: username,
+        photoURL: null,
+        about: "Hey there! I am using KreoChat.",
+        createdAt: serverTimestamp(),
+        lastSeen: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error signing up with email", error);
+      throw error;
     }
   };
 
@@ -88,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );
